@@ -1,0 +1,581 @@
+---
+title: "A Dynamic Network Model of Bilingual Speech"
+format:
+  html:
+    grid:
+      body-width: 1000px
+    toc: true
+    toc-depth: 2
+editor: visual
+theme: 
+  light: flatly
+  dark: darkly
+execute: 
+  warning: false
+  message: false
+bibliography: references.bib
+csl: unified-style-sheet-for-linguistics
+---
+
+## About this document
+
+This document contains the script used to analyze the data of two German-English bilingual children, "Fion" and "Silvie", for the paper "A dynamic network model of bilingual speech". The method is based on @ibbotsonDynamicNetworkAnalysis2019. The data come from corpora described in more detail in e.g. @quickConstructivelyCombiningLanguages2018 and @koch2025.
+
+::: callout-note
+## Data availability
+
+The "Fion" data are already publicly available [on OSF](https://osf.io/kcpj5/?view_only=127cc00c38634151bf0fed25c19bc04f) and will soon be available on the Child Language Data Exchange System (CHILDES) as well. The "Silvie" data are currently in the process of being anonymized; we expect the data to become public in 2026.
+:::
+
+## Preliminaries
+
+Loading some packages:
+
+```{r}
+#| message: false
+#| warning: false
+# load packages
+library(tidyverse)
+library(tidytext)
+library(ngram)
+library(igraph)
+library(ggraph)
+library(patchwork)
+library(svglite)
+library(geomnet)
+library(rgexf)
+library(qgraph)
+library(genBaRcode)
+library(ggraph)
+library(ggiraph)
+library(tidygraph)
+library(scales)
+#install.packages(
+ # "microViz",
+  #repos = c(davidbarnett = "https://david-barnett.r-universe.dev", getOption("repos"))
+#)
+#if (!require("BiocManager", quietly = TRUE))
+ # install.packages("BiocManager")
+
+#BiocManager::install("phyloseq")
+library(microViz)
+library(tidygraph)
+library(plotly)
+library(classInt)
+
+```
+
+## Data
+
+### CHI: Monolingual + mixed
+
+```{r}
+d_fion <- read_csv("../../master/fion_CHI.csv")
+d_silvie <- read_csv("../../master/silvie_CHI.csv")
+
+```
+
+## Data wrangling
+
+We only want to take multi-word units into account, hence we first filter them out:
+
+```{r}
+# add wordcount
+d_fion$wordcount <- sapply(1:nrow(d_fion), 
+                           function(i) wordcount(d_fion$Utterance_clean[i]))
+
+d_silvie$wordcount <- sapply(1:nrow(d_silvie), 
+                             function(i) wordcount(d_silvie$Utterance_clean[i]))
+
+# only multi-word units
+mwu_fion <- filter(d_fion, wordcount > 1)
+mwu_silvie <- filter(d_silvie, wordcount > 1)
+
+```
+
+Adding language tags: The column "Lang_Tags" already contains word-by-word tags for the code-mixed utterances, but not for the monolingual ones. However, the "type" column contains the information whether the utterance is English, German, or mixed. Hence for all non-mixed utterances, we can fill up the Lang_Tags column with this information. Before doing so, we add a few annotations that are missing in the "Silvie" file:
+
+```{r}
+
+mwu_fion <- mwu_fion %>% mutate(Lang_Tags = case_when(
+  Utterance_clean == "darf ich this nicht aufraeumen" ~ "g g e g g",
+  Utterance_clean == "komm ich this nicht aufraeumen" ~ "g g e g g",
+  Utterance_clean == "und this my one" ~ "g e e e",
+  Utterance_clean == "nein no" ~ "g e",
+  Utterance_clean == "you did birthday in juni" ~ "e e e eg g",
+  Utterance_clean == "that istis ein birthday my nanny" ~ "e ge g e e e",
+  Utterance_clean == "und das ist von bob the builder und wendy" ~ "g g g g e e e g eg",
+  .default = Lang_Tags
+))
+
+
+mwu_silvie <- mwu_silvie %>% mutate(Lang_Tags = case_when(Utterance_clean == "und this noch" ~ "g e g",
+                                            Utterance_clean == "der postman pat" ~ "g e e",
+                                            Utterance_clean == "ja a game" ~ "g e e",
+                                            Utterance_clean == "ja this big one" ~ "g e e e",
+                                            Utterance_clean == "ja a starfish" ~ "g e e",
+                                            Utterance_clean == "ja the ribbon" ~ "g e e",
+                                            Utterance_clean == "das heisst naemlich train train train train" ~ "g g g e e e e",
+                                            .default = Lang_Tags))
+
+
+```
+
+Also, there are some inconsistencies in the tagging that lead to more factor levels than necessary, we correct those:
+
+```{r}
+
+mwu_fion$Lang_Tags <- gsub("e\\(meta\\)", "e", mwu_fion$Lang_Tags)
+mwu_fion$Lang_Tags <- gsub("ge", "eg", mwu_fion$Lang_Tags)
+mwu_fion$Lang_Tags <- gsub("m", "eg", mwu_fion$Lang_Tags)
+
+mwu_silvie$Lang_Tags <- gsub("ge", "eg", mwu_silvie$Lang_Tags)
+mwu_silvie$Lang_Tags <- gsub("m", "eg", mwu_silvie$Lang_Tags)
+```
+
+Now we can proceed:
+
+```{r}
+# add language tags
+mwu_fion$Lang_Tags <- gsub("[[:punct:]]", "", mwu_fion$Lang_Tags)
+mwu_silvie$Lang_Tags <- gsub("[[:punct:]]", "", mwu_silvie$Lang_Tags)
+
+# add language tags on a word-by-word-basis to the non-code-mixed utterances
+mwu_fion$Lang_Tags <- sapply(1:nrow(mwu_fion), function(i) ifelse(is.na(mwu_fion$Lang_Tags[i]), ifelse(mwu_fion[i,]$type=="german", paste0(rep("g", mwu_fion[i,]$wordcount), collapse = " "), paste0(rep("e", mwu_fion[i,]$wordcount), collapse = " ")), mwu_fion$Lang_Tags[i]))
+mwu_silvie$Lang_Tags <- sapply(1:nrow(mwu_silvie), function(i) ifelse(is.na(mwu_silvie$Lang_Tags[i]), ifelse(mwu_silvie[i,]$type=="german", paste0(rep("g", mwu_silvie[i,]$wordcount), collapse = " "), paste0(rep("e", mwu_silvie[i,]$wordcount), collapse = " ")), mwu_silvie$Lang_Tags[i]))
+
+```
+
+## Get bigrams
+
+As we are interested in transitional probabilities between words, we need bigrams, which we get using the `unnest_tokens` function from the `tidytext` package. For each bigram, we also want the language information for the individual words, which is why we also extract bigrams from the Lang_Tags column in a second step and then join the dataframes. Finally, we split up the bigrams so that word1 and word2 are in different columns, which makes it easier to calculate the transition probabilities.
+
+```{r}
+
+bigrams_fion <- mwu_fion %>% unnest_tokens(bigram, Utterance_clean, token = "ngrams", n = 2, drop = FALSE)
+bigrams_silvie <- mwu_silvie %>% unnest_tokens(bigram, Utterance_clean, token = "ngrams", n = 2, drop = FALSE)
+
+
+bigrams_fion <- bind_cols(bigrams_fion,
+                          mwu_fion %>% unnest_tokens(bigram_LangTag, Lang_Tags, token = "ngrams", n = 2, drop = FALSE) %>% select(bigram_LangTag))
+
+
+bigrams_silvie <- bind_cols(bigrams_silvie,
+                            mwu_silvie %>% unnest_tokens(bigram_LangTag, Lang_Tags, token = "ngrams", n = 2, drop = FALSE) %>% select(bigram_LangTag))
+
+
+# one column for each word
+bigrams_fion <- bigrams_fion %>% separate(bigram, c("word1", "word2"), sep = " ", remove = F)
+bigrams_silvie <- bigrams_silvie %>% separate(bigram, c("word1", "word2"), sep = " ", remove = F)
+
+bigrams_fion <- bigrams_fion %>% separate(bigram_LangTag, c("LangTag1", "LangTag2"), sep = " ", remove = F)
+bigrams_silvie <- bigrams_silvie %>% separate(bigram_LangTag, c("LangTag1", "LangTag2"), sep = " ", remove = F)
+
+
+# add child column
+bigrams_fion <- mutate(bigrams_fion, Child = "Fion")
+bigrams_silvie <- mutate(bigrams_silvie, Child = "Silvie")
+
+
+```
+
+## Function for periodization
+
+This function adds a \`Months\` column to the data in which several months can be binned into larger groups. This makes it easier to try out different periodization options (or to stick with the original months data, i.e. have one network per month).
+
+To make an informed decision about the way the data are split, let's first take a quick look at the distribution of data across the timespan:
+
+```{r}
+
+# number of words
+d_fion %>% group_by(Month) %>% summarise(
+  n_words = n(),
+  n_files = length(unique(Filename))
+) %>% ggplot(aes(x=Month, y = n_words, label = n_files)) +
+  geom_point() +
+  geom_line(group = 1) +
+  geom_text(position = position_stack(), vjust = -0.4) +
+  theme(axis.text.x = element_text(angle=45, hjust=.9, size=12)) +
+  ylab("Number of words") + 
+  ggtitle("Fion (numbers indicate number of transcripts)") + d_silvie %>% group_by(Month) %>% summarise(
+  n_words = n(),
+  n_files = length(unique(Filename))
+) %>% ggplot(aes(x=Month, y = n_words, label = n_files)) +
+  geom_point() +
+  geom_line(group = 1) +
+  geom_text(position = position_stack(), vjust = -0.4) +
+  theme(axis.text.x = element_text(angle=45, hjust=.9, size=12)) +
+  ylab("Number of words") + 
+  ggtitle("Silvie (numbers indicate number of transcripts)")
+
+
+```
+
+In both datasets, we have fewer transcripts and, hence, fewer words in the later periods. Thus, it seems useful to work with three-month periods and bootstrapped 1000-word samples.
+
+```{r}
+
+# function for getting equal-sized intervals
+
+get_equal_bins <- function(x, n) {
+  
+  cur_var <- 1:length(unique(x))
+  
+  cur_breaks <- round(seq(1, length(unique(x)), by = length(unique(x)) / n))
+  
+  # add last number to breaks
+  cur_breaks[length(cur_breaks)+1] <- cur_var[length(cur_var)]
+  
+  # add 0 to var and breaks so that we can calculate +1
+  # below to avoid overlaps between two groups
+  cur_var <- c(0, cur_var)
+  cur_breaks[1] <- 0
+  
+ # cur_breaks[1] <- 0 # to make sure that it starts with 1
+
+  cur_list <- lapply(1:(length(cur_breaks)-1), function(i) cur_var[((which(cur_var==cur_breaks[i])+1)):(which(cur_var==cur_breaks[1+i]))])
+  
+  return(cur_list)
+}
+
+
+
+# function for adding months column
+add_month_bins <- function(df, n_bins) {
+  
+cur_bins <- get_equal_bins(df$Month, n_bins)
+
+# list to dataframe
+cur_bins_df <- do.call(rbind, lapply(1:length(cur_bins), function(i) tibble(index = i,
+       no    = cur_bins[[i]])))
+
+# get bin range
+bins_tbl01 <- tibble(age = unique(df$Month),
+                     no = 1:length(unique(df$Month)))
+
+# join
+cur_bins_df <- left_join(cur_bins_df, bins_tbl01)
+
+
+# bins in character form (from a to b)
+cur_bins_ch <- sapply(1:length(cur_bins), function(i) paste0(unique(df$Month)[cur_bins[[i]][1]], "-",
+unique(df$Month)[cur_bins[[i]][length(cur_bins[[i]])]]))
+
+# in tabular form
+bins_tbl <- tibble(bin = 1:length(cur_bins),
+       age_range = cur_bins_ch)
+
+# add to existing dataframe
+cur_bins_df <- left_join(cur_bins_df, bins_tbl, by = c("index" = "bin"))
+
+
+# return Months column
+cur_df_with_age_range <- left_join(df, select(cur_bins_df, age, age_range), by = c("Month" = "age"))
+
+return(cur_df_with_age_range)
+
+}
+
+
+
+
+
+
+```
+
+## Getting periods and samples
+
+As mentioned above, we want to work with bootstrapped 1,000-word samples from three-month periods. We therefore divide the Fion data into 21/3 = 7 bins, the Silvie data into 18/3 = 6 bins.
+
+```{r}
+# how many months for Fion and Silvie?
+length(unique(d_fion$Month))
+length(unique(d_silvie$Month))
+
+# add bins
+bigrams_fion <- bigrams_fion %>% add_month_bins(n_bins = 7)
+bigrams_silvie <- bigrams_silvie %>% add_month_bins(n_bins = 6)
+
+# get samples
+
+# Fion:
+for(i in 1:7) {
+  cur_fion <- filter(bigrams_fion, age_range == levels(factor(bigrams_fion$age_range))[i])
+  set.seed(i)
+cur_samples <- lapply(1:100, function(i) sample(1:length(unique(cur_fion$Utt_no)), 450))
+assign(paste0("bigrams_fion0", i), cur_fion[unlist(cur_samples),])
+}
+
+# Silvie:
+for(i in 1:6) {
+  cur_silvie <- filter(bigrams_silvie, age_range == levels(factor(bigrams_silvie$age_range))[i])
+  set.seed(i)
+cur_samples <- lapply(1:100, function(i) sample(1:length(unique(cur_silvie$Utt_no)), 450))
+assign(paste0("bigrams_silvie0", i), cur_silvie[unlist(cur_samples),])
+}
+
+
+```
+
+## Getting networks
+
+The following function calculates the actual networks by calculating transition probabilities, filtering out all instances attested less than `n_min` (default: 5) times.
+
+```{r}
+get_network <- function(bigram_df, n_min = 0, modularity_measure = FALSE) {
+  # count the bigram_df
+bigrams_count <- bigram_df %>% group_by(LangTag1, LangTag2) %>% count(word1, word2, sort = T)
+
+
+# filter out all below 5
+l <- bigrams_count %>%
+    filter(n >= n_min)
+
+# check if there are data
+if(nrow(l) > 0) {
+    # get bigram graph edges and vertices
+    bigram_graph <- bigrams_count %>%
+      filter(n >= n_min) %>%
+      ungroup %>% select(word1, word2, n) %>% graph_from_data_frame(directed = FALSE)
+    
+    # set weight attributes
+    bigram_graph <- set_edge_attr(bigram_graph, "weight", value = l$n)
+    
+    # set labels
+    V(bigram_graph)$label <- V(bigram_graph)$name
+    
+    # Louvain clustering
+    lv <- cluster_louvain(bigram_graph)
+  
+    # add Louvain clustering to graph
+    V(bigram_graph)$community <- membership(lv)
+    
+    # add language and word frequency as attributes
+    # to do so, we need a list of unigrams
+    
+    # language tags of unigrams
+    unigram_LangTags <-  bind_cols(bigram_df %>% select(Utt_no, Utterance_clean, Lang_Tags) %>% unique() %>% unnest_tokens(output = "unigram", input = "Utterance_clean", token = "ngrams", n = 1),
+    
+    select(bigram_df %>% select(Utt_no, Utterance_clean, Lang_Tags) %>% unique() %>% unnest_tokens(output = "unigram_LangTag", input = Lang_Tags, token = "ngrams", n = 1), unigram_LangTag)) %>% select(unigram, unigram_LangTag) %>% unique()
+    
+    # get frequencies of individual words
+    unigrams_freqs <- bigram_df %>% select(Utt_no, Utterance_clean) %>% unique() %>% unnest_tokens(output = "unigram", input = Utterance_clean) %>% group_by(unigram) %>% summarise(
+      n = n()
+    )
+    
+    # add unigram LangTags as attributes to the graph
+    
+    
+    V(bigram_graph)$language <- sapply(1:length(V(bigram_graph)), function(i) unigram_LangTags[which(unigram_LangTags$unigram == V(bigram_graph)$name[i]),]$unigram_LangTag[1])
+    
+    # add color as attribute
+    V(bigram_graph)$color <- case_when(V(bigram_graph)$language == "g" ~ "salmon",
+              V(bigram_graph)$language == "e" ~ "deepskyblue",
+              V(bigram_graph)$language == "eg" ~ "tan",
+              .default = "grey")
+    
+    
+    # add frequency as attribute
+    V(bigram_graph)$Freq <- sapply(1:length(V(bigram_graph)), function(i) unigrams_freqs[which(unigrams_freqs$unigram==V(bigram_graph)$name[i]),]$n[1]) 
+    
+    
+    
+    # return graph or modularity measure
+    if(modularity_measure) {
+      return(modularity(lv))
+    } else {
+      return(bigram_graph)
+    }
+    
+    
+  }
+}
+
+
+
+
+
+```
+
+## Visualization
+
+The functions created above can now be combined to create networks for different age spans.
+
+```{r}
+
+# function for plotting
+get_plot <- function(cur_network, myseed = 1999, min_freq = 0, interactive = FALSE, repel = TRUE, max.overlaps = 20, communities = "all", input = "igraph") {
+
+if(input == "layout") {
+  layout <- cur_network
+} else {
+  # get plot layout
+  layout <- create_layout(cur_network, layout = "fr")
+}
+  
+
+  
+
+# allow for selecting individual communities  
+if(any(communities != "all")) {
+  layout <- filter(layout, community %in% communities)
+}
+  
+# Build plot
+set.seed(myseed)
+p <- ggplot(layout) +
+  geom_edge_link(aes(x = x, y = y, xend = xend, yend = yend, edge_width = rescale(weight, to = c(.05, .5)), alpha = weight), color = "gray") +
+  geom_point_interactive(
+    aes(x = x, y = y, tooltip = name, color = color, size = Freq)
+  ) +
+   geom_node_text(aes(label = ifelse(Freq > min_freq, name, ""), size = Freq), repel = repel, max.overlaps = max.overlaps) +
+  stat_ellipse(aes(x=x, y=y, group = as.factor(community), fill = as.factor(community)),
+               geom = "polygon", alpha = 0.1, color = NA) +
+   scale_color_identity() +
+   theme_void() +
+  theme(legend.position = "none")
+
+if(interactive) {
+  # Zoomable plot with girafe
+g <- girafe(
+  ggobj = p,
+  options = list(
+    opts_zoom(min = 1, max = 60),
+    opts_toolbar(saveaspng = TRUE)
+  )
+)
+
+return(g)
+
+} else {
+  return(p)
+}
+  
+
+}
+
+
+
+
+
+```
+
+### Plots for publication
+
+```{r}
+
+# create seven plot objects named p_f1 to p_f7 for Fion's networks
+for(i in 1:7) {
+  assign(paste0("p_f", i), get(paste0("bigrams_fion0", i)) %>% get_network() %>% get_plot(repel = TRUE, max.overlaps = 50, min_freq = 5) + ggtitle(levels(factor(bigrams_fion$age_range))[i]) + theme(plot.title = element_text(face = "bold", hjust = 0.5)))
+}
+
+(p_f1 | p_f2 | p_f3) /
+(p_f4 | p_f5 | p_f6) /
+p_f7
+# ggsave("images/fion_networks01.png", width = 15, height = 15)
+
+# individual communities
+
+# get largest communities
+
+for(i in 1:7) {
+  cur_network <- get_network(get(paste0("bigrams_fion0", i)))
+largest_communities <- cur_network %>% create_layout(layout = "fr") %>% group_by(community) %>% summarise(
+  n = n()
+) %>% arrange(desc(n)) %>% head(3) %>% select(community) %>% as.vector() %>% unname() %>% unlist()
+assign(paste0("p_lc_f", i), cur_network %>% get_plot(communities = largest_communities))
+
+}
+
+p_lc_f1 + p_lc_f4 + p_lc_f7
+
+
+cur_network <- get_network(get(paste0("bigrams_fion0", 1)))
+largest_communities <- cur_network %>% create_layout(layout = "fr") %>% group_by(community) %>% summarise(
+  n = n()
+) %>% arrange(desc(n)) %>% head(3) %>% select(community) %>% as.vector() %>% unname() %>% unlist()
+cur_network %>% get_plot(communities = largest_communities)
+
+
+bigrams_fion01 %>% get_network() %>% get_plot(communities = 1:3) + ggtitle(levels(factor(bigrams_fion$age_range))[1]) + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+bigrams_fion04 %>% get_network() %>% get_plot(communities = 1:3) + ggtitle(levels(factor(bigrams_fion$age_range))[4]) + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+bigrams_fion07 %>% get_network() %>% get_plot(communities = 1:3) + ggtitle(levels(factor(bigrams_fion$age_range))[7]) + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+
+bigrams_silvie01 %>% get_network() %>% get_plot(communities = 1:3) + ggtitle(levels(factor(bigrams_silvie$age_range))[1]) + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+bigrams_silvie03 %>% get_network() %>% get_plot(communities = 1:3) + ggtitle(levels(factor(bigrams_silvie$age_range))[3]) + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+bigrams_silvie06 %>% get_network() %>% get_plot(communities = 1:3) + ggtitle(levels(factor(bigrams_silvie$age_range))[6]) + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+
+
+# create six plot objects named p_f1 to p_f7 for Silvie's networks
+for(i in 1:6) {
+  assign(paste0("p_s", i), get(paste0("bigrams_silvie0", i)) %>% get_network() %>% get_plot(repel = TRUE, min_freq = 5, max.overlaps = 50) + ggtitle(levels(factor(bigrams_silvie$age_range))[i]) + theme(plot.title = element_text(face = "bold", hjust = 0.5)))
+}
+
+(p_s1 | p_s2 | p_s3) /
+(p_s4 | p_s5 | p_s6)
+
+# ggsave("images/silvie_networks01.png", width = 15, height = 15)
+
+
+
+```
+
+### Plots for online viewing
+
+```{r}
+#| fig-height: 100
+#| fig-width: 100
+
+# Fion
+
+bigrams_fion01 %>% get_network() %>% get_plot(repel = FALSE, interactive = TRUE)
+bigrams_fion02 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+bigrams_fion03 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+bigrams_fion04 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+bigrams_fion05 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+bigrams_fion06 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+bigrams_fion07 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+
+
+# Silvie
+
+bigrams_silvie01 %>% get_network() %>% get_plot(repel = FALSE, interactive = TRUE)
+bigrams_silvie02 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+bigrams_silvie03 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+bigrams_silvie04 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+bigrams_silvie05 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+bigrams_silvie06 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE)
+
+
+
+```
+
+## Modularities
+
+```{r}
+
+# get modularities
+tibble(
+  child = c(rep("Fion", 7), rep("Silvie", 6)),
+  age = c(levels(factor(bigrams_fion$age_range)),
+          levels(factor(bigrams_silvie$age_range))),
+modularity = c(bigrams_fion01 %>% get_network(modularity_measure=TRUE), 
+bigrams_fion02 %>% get_network(modularity_measure=TRUE), 
+bigrams_fion03 %>% get_network(modularity_measure=TRUE), 
+bigrams_fion04 %>% get_network(modularity_measure=TRUE), 
+bigrams_fion05 %>% get_network(modularity_measure=TRUE), 
+bigrams_fion06 %>% get_network(modularity_measure=TRUE), 
+bigrams_fion07 %>% get_network(modularity_measure=TRUE), 
+bigrams_silvie01 %>% get_network(modularity_measure=TRUE), 
+bigrams_silvie02 %>% get_network(modularity_measure=TRUE), 
+bigrams_silvie03 %>% get_network(modularity_measure=TRUE), 
+bigrams_silvie04 %>% get_network(modularity_measure=TRUE), 
+bigrams_silvie05 %>% get_network(modularity_measure=TRUE), 
+bigrams_silvie06 %>% get_network(modularity_measure=TRUE)))
+
+
+
+
+
+
+```
