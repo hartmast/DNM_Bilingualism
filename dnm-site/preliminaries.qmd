@@ -1,0 +1,41 @@
+---
+title: "Preliminaries"
+format: html
+---
+
+## Preliminaries
+
+Loading some packages:
+
+```{r}
+#| message: false
+#| warning: false
+# load packages
+library(tidyverse)
+library(tidytext)
+library(ngram)
+library(igraph)
+library(ggraph)
+library(patchwork)
+library(svglite)
+library(geomnet)
+library(rgexf)
+library(qgraph)
+library(genBaRcode)
+library(ggraph)
+library(ggiraph)
+library(tidygraph)
+library(scales)
+#install.packages(
+ # "microViz",
+  #repos = c(davidbarnett = "[https://david-barnett.r-universe.dev](https://david-barnett.r-universe.dev)", getOption("repos"))
+#)
+#if (!require("BiocManager", quietly = TRUE))
+ # install.packages("BiocManager")
+
+#BiocManager::install("phyloseq")
+library(microViz)
+library(tidygraph)
+library(plotly)
+library(classInt)
+library(grid)

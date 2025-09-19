@@ -1,0 +1,33 @@
+project:
+  type: website
+
+website:
+  title: "A Dynamic Network Model of Bilingual Speech"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: about.qmd
+        text: About this document
+      - href: preliminaries.qmd
+        text: Preliminaries
+      - href: toy-example.qmd
+        text: Toy example
+      - href: data.qmd
+        text: Data
+      - href: data-wrangling.qmd
+        text: Data wrangling
+      - href: get-bigrams.qmd
+        text: Get bigrams
+      - href: transition-probabilities.qmd
+        text: Transition probabilities
+      - href: function-for-periodization.qmd
+        text: Function for periodization
+      - href: getting-periods-and-samples.qmd
+        text: Getting periods and samples
+      - href: getting-networks.qmd
+        text: Getting networks
+      - href: visualization.qmd
+        text: Visualization
+      - href: plots-for-publication.qmd
+        text: Plots for publication

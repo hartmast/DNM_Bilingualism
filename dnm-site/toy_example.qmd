@@ -1,0 +1,15 @@
+---
+title: "Toy example"
+format: html
+---
+
+## Toy example
+
+This is just a toy example for illustrating the basic ideas:
+
+```{r}
+
+testdf <- tibble(text = c("I love linguistics", "I like linguistics", "I love networks"))
+
+test_graph <- testdf %>% unnest_tokens(output = "bigrams", input = "text", token = "ngrams", n = 2) %>% separate_wider_delim(cols = "bigrams", delim = " ", names = c("word1", "word2")) %>% graph_from_data_frame()
+

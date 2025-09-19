@@ -1,0 +1,14 @@
+---
+title: "About this document"
+format: html
+---
+
+## About this document
+
+[cite_start]This document contains the script used to analyze the data of two German-English bilingual children, "Fion" and "Silvie", for the paper "A dynamic network model of bilingual speech". The method is based on @ibbotsonDynamicNetworkAnalysis2019. The data come from corpora described in more detail in e.g. [cite_start]@quickConstructivelyCombiningLanguages2018 and @koch2025. 
+
+::: callout-note
+## Data availability
+
+[cite_start]The "Fion" data are already available [on OSF](https://osf.io/kcpj5/?view_only=127cc00c38634151bf0fed25c19bc04f) and will soon be available on the Child Language Data Exchange System (CHILDES) as well. [cite_start]The "Silvie" data are currently in the process of being anonymized; we expect the data to become public in 2026.
+:::

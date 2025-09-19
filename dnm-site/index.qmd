@@ -1,0 +1,16 @@
+---
+title: "A Dynamic Network Model of Bilingual Speech"
+format:
+  html:
+    grid:
+      body-width: 1000px
+editor: visual
+theme:
+  light: flatly
+  dark: darkly
+execute:
+  warning: false
+  message: false
+bibliography: references.bib
+csl: unified-style-sheet-for-linguistics
+---

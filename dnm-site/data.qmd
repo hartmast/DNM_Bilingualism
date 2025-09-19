@@ -1,0 +1,58 @@
+---
+title: "Data"
+format: html
+---
+
+## Data
+
+### CHI: Monolingual + mixed
+
+```{r}
+
+# child data
+d_fion <- read_csv("../../master/fion_CHI.csv")
+d_silvie <- read_csv("../../master/silvie_CHI.csv")
+
+# caregiver data
+fion_cds <- read_csv("/Users/stefanhartmann/Library/CloudStorage/Dropbox/Input_Project/Data/master/fion_input_with_language_tags.csv.zip")
+silvie_cds <- read_csv("/Users/stefanhartmann/Library/CloudStorage/Dropbox/Input_Project/Data/master/silvie_input_with_language_tags.csv.zip")
+
+# remove all CDS data with "xxx" or only consisting of "<trs>" 
+because the language tagging is often off.
+
+fion_cds <- fion_cds[-grep("xxx", fion_cds$Utterance),]
+silvie_cds <- silvie_cds[-grep("xxx", silvie_cds$Utterance),]
+
+fion_cds <- fion_cds[-grep("<tr.*", fion_cds$Utterance),]
+silvie_cds <- silvie_cds[-grep("<tr.*", silvie_cds$Utterance),]
+
+
+---
+
+### New `data-wrangling.qmd`
+
+This file contains the content from the "Data wrangling" heading.
+
+```markdown
+---
+title: "Data wrangling"
+format: html
+---
+
+## Data wrangling
+
+### Child data
+
+We only want to take multi-word units into account, hence we first filter them out:
+
+```{r}
+# add wordcount
+d_fion$wordcount <- sapply(1:nrow(d_fion),
+                           function(i) wordcount(d_fion$Utterance_clean[i]))
+
+d_silvie$wordcount <- sapply(1:nrow(d_silvie),
+                           function(i) wordcount(d_silvie$Utterance_clean[i]))
+
+# only multi-word units
+mwu_fion <- filter(d_fion, wordcount > 1)
+mwu_silvie <- filter(d_silvie, wordcount > 1)
