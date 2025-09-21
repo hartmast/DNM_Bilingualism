@@ -24,7 +24,7 @@ This document contains the script used to analyze the data of two German-English
 ::: callout-note
 ## Data availability
 
-The "Fion" data are already available on `CHILDES`. The "Silvie" data are currently in the process of being anonymized; we expect the data to become public in 2026.
+The "Fion" data are already available on [`CHILDES`](https://talkbank.org/childes/access/Biling/MPI-EVA-Leipzig.html). The "Silvie" data are currently in the process of being anonymized; we expect the data to become public in 2026.
 :::
 
 ## Preliminaries
@@ -1073,7 +1073,7 @@ fion_FAT03 <- bigrams_cds_fion03 %>% filter(Speaker == "FAT") %>% get_network_cd
 
 ```
 
-We don't include the images here as it would make this file even bigger, but the png files can be found in the "images" folder (\`images/networks_cds.png\`).
+We don't include the images here to keep the size of the file a bit lower, but the png files can be found in the "images" folder (\`images/networks_cds.png\`).
 
 ```{r}
 #| eval: false
@@ -1119,7 +1119,7 @@ silvie_FAT <- bigrams_cds_silvie %>% filter(Speaker == "FAT") %>% get_network_cd
 silvie_MOT <- bigrams_cds_silvie %>% filter(Speaker == "MOT") %>% get_network_cds()
 
 
-# get largest clusters
+# get largest communities
 
 # Silvie's mother
 silvie_MOT_network <- silvie_MOT %>% create_layout(layout = "fr") 
@@ -1130,7 +1130,7 @@ largest_clusters_prop <- silvie_MOT_network %>% select(community) %>% table() %>
 silvie_MOT_lc <-  ( silvie_MOT_network %>% filter(community %in% largest_clusters[1]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 1 (", largest_clusters_prop[1]*100, "%)")) |
 silvie_MOT_network %>% filter(community %in% largest_clusters[2]) %>% get_plot(input = "layout") +  ggtitle(paste0("Community 2 (", largest_clusters_prop[2]*100, "%)")) |
 silvie_MOT_network %>% filter(community %in% largest_clusters[3]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 3 (", largest_clusters_prop[3]*100, "%)")) |
-    silvie_MOT_network %>% filter(community %in% largest_clusters[3]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 4 (", largest_clusters_prop[4]*100, "%)")))
+    silvie_MOT_network %>% filter(community %in% largest_clusters[4]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 4 (", largest_clusters_prop[4]*100, "%)")))
 
 # Silvie's father
 silvie_FAT_network <- silvie_FAT %>% create_layout(layout = "fr") 
@@ -1141,7 +1141,7 @@ largest_clusters_prop <- silvie_FAT_network %>% select(community) %>% table() %>
 silvie_FAT_lc <-  ( silvie_FAT_network %>% filter(community %in% largest_clusters[1]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 1 (", largest_clusters_prop[1]*100, "%)")) |
 silvie_FAT_network %>% filter(community %in% largest_clusters[2]) %>% get_plot(input = "layout") +  ggtitle(paste0("Community 2 (", largest_clusters_prop[2]*100, "%)")) |
 silvie_FAT_network %>% filter(community %in% largest_clusters[3]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 3 (", largest_clusters_prop[3]*100, "%)")) |
-    silvie_FAT_network %>% filter(community %in% largest_clusters[3]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 4 (", largest_clusters_prop[4]*100, "%)")))
+    silvie_FAT_network %>% filter(community %in% largest_clusters[4]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 4 (", largest_clusters_prop[4]*100, "%)")))
 
 # Fion's mother
 
@@ -1153,7 +1153,7 @@ largest_clusters_prop <- fion_MOT_network %>% select(community) %>% table() %>% 
 fion_MOT_lc <-  ( fion_MOT_network %>% filter(community %in% largest_clusters[1]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 1 (", largest_clusters_prop[1]*100, "%)")) |
 fion_MOT_network %>% filter(community %in% largest_clusters[2]) %>% get_plot(input = "layout") +  ggtitle(paste0("Community 2 (", largest_clusters_prop[2]*100, "%)")) |
 fion_MOT_network %>% filter(community %in% largest_clusters[3]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 3 (", largest_clusters_prop[3]*100, "%)")) |
-    fion_MOT_network %>% filter(community %in% largest_clusters[3]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 4 (", largest_clusters_prop[4]*100, "%)")))
+    fion_MOT_network %>% filter(community %in% largest_clusters[4]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 4 (", largest_clusters_prop[4]*100, "%)")))
 
 # fion's father
 fion_FAT_network <- fion_FAT %>% create_layout(layout = "fr") 
@@ -1164,7 +1164,7 @@ largest_clusters_prop <- fion_FAT_network %>% select(community) %>% table() %>% 
 fion_FAT_lc <-  ( fion_FAT_network %>% filter(community %in% largest_clusters[1]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 1 (", largest_clusters_prop[1]*100, "%)")) |
 fion_FAT_network %>% filter(community %in% largest_clusters[2]) %>% get_plot(input = "layout") +  ggtitle(paste0("Community 2 (", largest_clusters_prop[2]*100, "%)")) |
 fion_FAT_network %>% filter(community %in% largest_clusters[3]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 3 (", largest_clusters_prop[3]*100, "%)")) |
-    fion_FAT_network %>% filter(community %in% largest_clusters[3]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 4 (", largest_clusters_prop[4]*100, "%)")))
+    fion_FAT_network %>% filter(community %in% largest_clusters[4]) %>% get_plot(input = "layout") + ggtitle(paste0("Community 4 (", largest_clusters_prop[4]*100, "%)")))
 
 
 # all in one big plot
@@ -1232,12 +1232,10 @@ bigrams_silvie06 %>% get_network() %>% get_plot(repel = FALSE,interactive = TRUE
 
 ### Child-directed speech
 
-(to be added later)
-
 ```{r}
 #| eval: false
 #| include: false
-# Fion's mother
+
 
 fion_MOT_network %>% filter(community %in% largest_clusters) %>% get_plot(input = "layout", interactive = T)
  
