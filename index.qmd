@@ -1,5 +1,5 @@
 ---
-title: "A Dynamic Network Model of Bilingual Speech"
+title: "A dynamic network approach to bilingual child data"
 format:
   html:
     grid:
@@ -19,12 +19,12 @@ csl: unified-style-sheet-for-linguistics
 
 ## About this document
 
-This document contains the script used to analyze the data of two German-English bilingual children, "Fion" and "Silvie", for the paper "A dynamic network model of bilingual speech". The method is based on @ibbotsonDynamicNetworkAnalysis2019. The data come from corpora described in more detail in e.g. @quickConstructivelyCombiningLanguages2018 and @koch2025.
+This document contains the script used to analyze the data of two German-English bilingual children, "Fion" and "Silvie", for the paper "A dynamic network approach to bilingual child data". The method is loosely based on @ibbotsonDynamicNetworkAnalysis2019. The data come from corpora described in more detail in e.g. @quickConstructivelyCombiningLanguages2018 and @koch2025.
 
 ::: callout-note
 ## Data availability
 
-The "Fion" data are already available on CHILDES. The "Silvie" data are currently in the process of being anonymized; we expect the data to become public in 2026.
+The "Fion" data are already available on `CHILDES`. The "Silvie" data are currently in the process of being anonymized; we expect the data to become public in 2026.
 :::
 
 ## Preliminaries
@@ -41,12 +41,12 @@ library(ngram)
 library(igraph)
 library(ggraph)
 library(patchwork)
-library(svglite)
-library(geomnet)
-library(rgexf)
-library(qgraph)
-library(genBaRcode)
-library(ggraph)
+# library(svglite)
+# library(geomnet)
+# library(rgexf)
+# library(qgraph)
+# library(genBaRcode)
+# library(ggraph)
 library(ggiraph)
 library(tidygraph)
 library(scales)
@@ -58,9 +58,9 @@ library(scales)
  # install.packages("BiocManager")
 
 #BiocManager::install("phyloseq")
-library(microViz)
-library(tidygraph)
-library(plotly)
+# library(microViz)
+# library(tidygraph)
+# library(plotly)
 library(classInt)
 library(grid)
 # devtools::install_github("analyxcompany/ForceAtlas2")
@@ -79,10 +79,20 @@ testdf <- tibble(text = c("I love linguistics", "I like linguistics", "I love ne
 test_graph <- testdf %>% unnest_tokens(output = "bigrams", input = "text", token = "ngrams", n = 2) %>% separate_wider_delim(cols = "bigrams", delim = " ", names = c("word1", "word2")) %>% graph_from_data_frame()
 E(test_graph)$weight <- c(2,1,1,1,2,1)
 
+
+```
+
+```{r}
+#| include: false
+
 set.seed(1234567)
 layout <- create_layout(test_graph, layout = "fr")
 layout[,1:2] <- layout.forceatlas2(test_graph, directed = TRUE, iterations = 1000) %>% as.data.frame() %>% setNames(c("x", "y"))
 
+
+```
+
+```{r}
 
 ggplot(layout) +
   geom_edge_link(aes(x = x, y = y, xend = xend, yend = yend,
@@ -140,7 +150,7 @@ mwu_silvie <- filter(d_silvie, wordcount > 1)
 
 ```
 
-Adding language tags: The column "Lang_Tags" already contains word-by-word tags for the code-mixed utterances, but not for the monolingual ones. However, the "type" column contains the information whether the utterance is English, German, or mixed. Hence for all non-mixed utterances, we can fill up the Lang_Tags column with this information. Before doing so, we add a few annotations that are missing in the "Silvie" file:
+Adding language tags: The column "Lang_Tags" already contains word-by-word tags for the code-mixed utterances, but not for the monolingual ones. However, the "type" column contains the information whether the utterance is English, German, or mixed. Hence for all non-mixed utterances, we can fill up the Lang_Tags column with this information. Before doing so, we add a few annotations that are missing in the files:
 
 ```{r}
 
@@ -230,6 +240,8 @@ bigrams_silvie <- mutate(bigrams_silvie, Child = "Silvie")
 
 ### CDS data
 
+As in the child data, we extract bigrams:
+
 ```{r}
 # get bigrams --------------------------------------------------
 
@@ -303,15 +315,36 @@ return(bigrams_df_tbl)
 
 This function adds a \`Months\` column to the data in which several months can be binned into larger groups. This makes it easier to try out different periodization options (or to stick with the original months data, i.e. have one network per month).
 
-To make an informed decision about the way the data are split, let's first take a quick look at the distribution of data across the timespan:
+To make an informed decision about the way the data are split up into time slices, let's first take a quick look at the distribution of data across the timespan:
 
 ### Child speech
 
 ```{r}
 
+# number of utterances
+d_fion %>% group_by(Month) %>% summarise(
+  n_utterances = n(),
+  n_files = length(unique(Filename))
+) %>% ggplot(aes(x=Month, y = n_utterances, label = n_files)) +
+  geom_point() +
+  geom_line(group = 1) +
+  geom_text(position = position_stack(), vjust = -0.4) +
+  theme(axis.text.x = element_text(angle=45, hjust=.9, size=12)) +
+  ylab("Number of utterances") + 
+  ggtitle("Fion (numbers indicate number of transcripts)") + d_silvie %>% group_by(Month) %>% summarise(
+  n_utterances = n(),
+  n_files = length(unique(Filename))
+) %>% ggplot(aes(x=Month, y = n_utterances, label = n_files)) +
+  geom_point() +
+  geom_line(group = 1) +
+  geom_text(position = position_stack(), vjust = -0.4) +
+  theme(axis.text.x = element_text(angle=45, hjust=.9, size=12)) +
+  ylab("Number of utterances") + 
+  ggtitle("Silvie (numbers indicate number of transcripts)")
+
 # number of words
 d_fion %>% group_by(Month) %>% summarise(
-  n_words = n(),
+  n_words = sum(Wordcount),
   n_files = length(unique(Filename))
 ) %>% ggplot(aes(x=Month, y = n_words, label = n_files)) +
   geom_point() +
@@ -320,7 +353,7 @@ d_fion %>% group_by(Month) %>% summarise(
   theme(axis.text.x = element_text(angle=45, hjust=.9, size=12)) +
   ylab("Number of words") + 
   ggtitle("Fion (numbers indicate number of transcripts)") + d_silvie %>% group_by(Month) %>% summarise(
-  n_words = n(),
+  n_words = sum(Wordcount),
   n_files = length(unique(Filename))
 ) %>% ggplot(aes(x=Month, y = n_words, label = n_files)) +
   geom_point() +
@@ -430,9 +463,6 @@ bigrams_silvie_cds_count <- bigrams_cds_silvie %>% group_by(Utt_no, word1, word2
   ) %>% arrange(desc(n))
 
 
-# add language tag to the words
-# bigrams_fion_cds_count$word1 <- paste0(bigrams_fion_cds_count$word1, "_", bigrams_fion_cds_count$lang)
-# bigrams_fion_cds_count$word2 <-paste0(bigrams_fion_cds_count$word2, "_", bigrams_fion_cds_count$lang)
 ```
 
 ## Getting periods and samples
@@ -442,7 +472,6 @@ We want to work with three-month periods, hence we divide the Fion data into 21/
 ### Periods - child data
 
 ```{r}
-
 # how many months for Fion and Silvie?
 length(unique(d_fion$Month))
 length(unique(d_silvie$Month))
@@ -476,6 +505,7 @@ The following code compiles 450-utterance samples from three-month periods for t
 ```{r}
 
 # get samples
+set.seed(1234567)
 
 # Fion:
 for(i in 1:7) {
@@ -502,9 +532,14 @@ assign(paste0("bigrams_silvie0", i), cur_silvie[unlist(cur_samples),])
 
 ```{r}
 
+# backup
+bigrams_cds_fion_with_unigrams <- bigrams_cds_fion
+bigrams_cds_silvie_with_unigrams <- bigrams_cds_silvie
+
 # omit utterances consisting of only one word
 bigrams_cds_fion <- bigrams_cds_fion %>% filter(Wordcount > 1)
 bigrams_cds_silvie <- bigrams_cds_silvie %>% filter(Wordcount > 1)
+
 
 # get 25,000-utterance samples for each of the bins
 set.seed(12345)
@@ -566,7 +601,7 @@ if(nrow(l1) > 0) {
     V(bigram_graph)$label <- V(bigram_graph)$name
     
     # Louvain clustering
-    lv <- cluster_louvain(bigram_graph)
+    lv <- cluster_louvain(bigram_graph, resolution = .3)
   
     # add Louvain clustering to graph
     V(bigram_graph)$community <- membership(lv)
@@ -705,7 +740,7 @@ if(nrow(l1) > 0) {
     V(bigram_graph)$label <- V(bigram_graph)$name
     
     # Louvain clustering
-    lv <- cluster_louvain(bigram_graph)
+    lv <- cluster_louvain(bigram_graph, resolution = .3)
   
     # add Louvain clustering to graph
     V(bigram_graph)$community <- membership(lv)
@@ -843,7 +878,6 @@ return(g)
 
 ```{r}
 
-
 # create seven objects with Fion's networks
 for(i in 1:7) {
   assign(paste0("network_fion0", i), get(paste0("bigrams_fion0", i)) %>% get_network())
@@ -879,7 +913,7 @@ p_t2 /
 (p_s1 | p_s2 | p_s3) /
 (p_s4 | p_s5 | p_s6) +
   plot_layout(heights = c(.2,1,1,1,.2,1,1))
- #ggsave("images/fion_silvie_networks450.png", width = 15, height = 20.5)
+ ggsave("images/fion_silvie_networks450.png", width = 15, height = 20.5)
 
 
 
@@ -894,33 +928,113 @@ p_t2 /
 
 for(i in 1:7) {
   cur_network <- get_network(get(paste0("bigrams_fion0", i)), edges = "n")
-largest_communities <- cur_network %>% create_layout(layout = "fr") %>% group_by(community) %>% summarise(
+  cur_network_layout <- create_layout(cur_network, layout = "fr")
+  
+  largest_communities <- cur_network_layout %>% group_by(community) %>% summarise(
   n = n()
-) %>% arrange(desc(n)) %>% head(3) %>% select(community) %>% as.vector() %>% unname() %>% unlist()
-assign(paste0("p_lc_f", i), cur_network %>% get_plot(communities = largest_communities) + ggtitle(levels(factor(bigrams_fion$age_range))[i]) + theme(plot.title = element_text(face = "bold", hjust = 0.5))) 
+) %>% arrange(desc(n)) %>% head(4) %>% select(community) %>% as.vector() %>% unname() %>% unlist()
+  
+  prop_top_communities <- table(cur_network_layout$community) %>% prop.table() %>% as_tibble(.name_repair="unique") %>% setNames(c("community", "n")) %>% arrange(desc(n)) %>% head(4)
+  
+  
+  p0001 <- cur_network %>% get_plot(communities=largest_communities[1]) + ggtitle(paste0("Community ", 1, " (", paste0(round(prop_top_communities$n[1], digits = 4)*100, "%"), ")"))
+  p0002 <- cur_network %>% get_plot(communities=largest_communities[2]) + ggtitle(paste0("Community ", 2, " (", paste0(round(prop_top_communities$n[2], digits = 4)*100, "%"), ")"))
+  p0003 <- cur_network %>% get_plot(communities=largest_communities[3]) + ggtitle(paste0("Community ", 3, " (", paste0(round(prop_top_communities$n[3], digits = 4)*100, "%"), ")"))
+  p0004 <- cur_network %>% get_plot(communities=largest_communities[4]) + ggtitle(paste0("Community ", 4, " (", paste0(round(prop_top_communities$n[4], digits = 4)*100, "%"), ")"))
+  
+  cur_p <- (p0001 | p0002 | p0003 | p0004)
+  assign(paste0("p_lc_f_period", i), cur_p)
 
 }
 
 
 # get largest communities - Silvie
+
 for(i in 1:6) {
-  cur_network <- get_network(get(paste0("bigrams_silvie0", i)))
-largest_communities <- cur_network %>% create_layout(layout = "fr") %>% group_by(community) %>% summarise(
+  cur_network <- get_network(get(paste0("bigrams_silvie0", i)), edges = "n")
+  cur_network_layout <- create_layout(cur_network, layout = "fr")
+  
+  largest_communities <- cur_network_layout %>% group_by(community) %>% summarise(
   n = n()
-) %>% arrange(desc(n)) %>% head(3) %>% select(community) %>% as.vector() %>% unname() %>% unlist()
-assign(paste0("p_lc_s", i), cur_network %>% get_plot(communities = largest_communities) + ggtitle(levels(factor(bigrams_silvie$age_range))[i]) + theme(plot.title = element_text(face = "bold", hjust = 0.5))) 
+) %>% arrange(desc(n)) %>% head(4) %>% select(community) %>% as.vector() %>% unname() %>% unlist()
+  
+  prop_top_communities <- table(cur_network_layout$community) %>% prop.table() %>% as_tibble(.name_repair="unique") %>% setNames(c("community", "n")) %>% arrange(desc(n)) %>% head(4)
+  
+  
+  p0001 <- cur_network %>% get_plot(communities=largest_communities[1]) + ggtitle(paste0("Community ", 1, " (", paste0(round(prop_top_communities$n[1], digits = 4)*100, "%"), ")"))
+  p0002 <- cur_network %>% get_plot(communities=largest_communities[2]) + ggtitle(paste0("Community ", 2, " (", paste0(round(prop_top_communities$n[2], digits = 4)*100, "%"), ")"))
+  p0003 <- cur_network %>% get_plot(communities=largest_communities[3]) + ggtitle(paste0("Community ", 3, " (", paste0(round(prop_top_communities$n[3], digits = 4)*100, "%"), ")"))
+  p0004 <- cur_network %>% get_plot(communities=largest_communities[4]) + ggtitle(paste0("Community ", 4, " (", paste0(round(prop_top_communities$n[4], digits = 4)*100, "%"), ")"))
+  
+  cur_p <- (p0001 | p0002 | p0003 | p0004)
+  assign(paste0("p_lc_s_period", i), cur_p)
 
 }
 
+
 # plot titles
 p_t1 <- ggplot() + annotate("text", x = 4, y = 25, label = "bold(paste('Largest', ' communities, Fion'))", size = 12, parse = TRUE) + theme_void() 
+
+for(i in 1:7) {
+  assign(paste0("title_agerange_fion", i), ggplot() + annotate("text", x = 4, y = 25, label = levels(factor(bigrams_fion$age_range))[i], size = 8, parse = FALSE) + theme_void())
+}
+
 p_t2 <- ggplot() + annotate("text", x = 4, y = 25, label = "bold(paste('Largest', ' communities, Silvie'))", size = 12, parse = TRUE) + theme_void() 
 
+for(i in 1:6) {
+  assign(paste0("title_agerange_silvie", i), ggplot() + annotate("text", x = 4, y = 25, label = levels(factor(bigrams_fion$age_range))[i], size = 8, parse = FALSE) + theme_void())
+}
+
+
+# complete plot
 p_t1 /
-(p_lc_f1 | p_lc_f4 | p_lc_f7) /
+  title_agerange_fion1 /
+  p_lc_f_period1 /
+  title_agerange_fion2 /
+  p_lc_f_period2 /
+  title_agerange_fion3 /
+  p_lc_f_period3 /
+  title_agerange_fion4 /
+  p_lc_f_period4 /
+  title_agerange_fion5 /
+  p_lc_f_period5 /  
+  title_agerange_fion6 /
+  p_lc_f_period6 /
+  title_agerange_fion7 /
+  p_lc_f_period7 + plot_layout(heights = c(.2, rep(c(.1,1), 7)))
+# ggsave("images/largest_communities_fion_new.png", width = 16, height = 25)
+
+
+# plot titles
+p_t1 <- ggplot() + annotate("text", x = 4, y = 25, label = "bold(paste('Largest', ' communities, Silvie'))", size = 12, parse = TRUE) + theme_void() 
+
+for(i in 1:7) {
+  assign(paste0("title_agerange_silvie", i), ggplot() + annotate("text", x = 4, y = 25, label = levels(factor(bigrams_silvie$age_range))[i], size = 8, parse = FALSE) + theme_void())
+}
+
+p_t2 <- ggplot() + annotate("text", x = 4, y = 25, label = "bold(paste('Largest', ' communities, Silvie'))", size = 12, parse = TRUE) + theme_void() 
+
+for(i in 1:6) {
+  assign(paste0("title_agerange_silvie", i), ggplot() + annotate("text", x = 4, y = 25, label = levels(factor(bigrams_silvie$age_range))[i], size = 8, parse = FALSE) + theme_void())
+}
+
+
+# complete plot
 p_t2 /
-(p_lc_s1 | p_lc_s3 | p_lc_s6) + plot_layout(heights = c(.2, 1, .2, 1))
-# ggsave("images/largest_clusters450.png", width = 15, height = 10)
+  title_agerange_silvie1 /
+  p_lc_s_period1 /
+  title_agerange_silvie2 /
+  p_lc_s_period2 /
+  title_agerange_silvie3 /
+  p_lc_s_period3 /
+  title_agerange_silvie4 /
+  p_lc_s_period4 /
+  title_agerange_silvie5 /
+  p_lc_s_period5 /  
+  title_agerange_silvie6 /
+  p_lc_s_period6 + plot_layout(heights = c(.2, rep(c(.1,1), 6)))
+ggsave("images/largest_communities_silvie_new.png", width = 16, height = 25)
+
 
 ```
 
@@ -959,9 +1073,10 @@ fion_FAT03 <- bigrams_cds_fion03 %>% filter(Speaker == "FAT") %>% get_network_cd
 
 ```
 
+We don't include the images here as it would make this file even bigger, but the png files can be found in the "images" folder (\`images/networks_cds.png\`).
+
 ```{r}
 #| eval: false
-#| include: false
 # plot networks
 
 # titles
@@ -1084,15 +1199,12 @@ ggsave("images/parents_largest_communities.png",
 
 ### Plots for online viewing
 
+Here we provide plots showing the full networks for each time slice for online viewing.
+
 ### Child speech
 
-(will be added later)
-
 ```{r}
-#| eval: false
-#| fig-height: 100
-#| fig-width: 100
-#| include: false
+
 
 # Fion
 
@@ -1145,6 +1257,8 @@ silvie_FAT_network %>% filter(community %in% largest_clusters) %>% get_plot(inpu
 ## Network size
 
 Network size refers to the number of nodes in the network. We calculate it for each child in each month.
+
+### Child speech
 
 ```{r}
 
@@ -1298,6 +1412,104 @@ ggplot(network_sizes_sampled, aes(x = Period, y = Size, group = Language, col = 
   theme(legend.title = element_text(size = 18, face = "bold")) +
   theme(text = element_text(size = 18))
 # ggsave("images/network_size.png", width = 12, height = 6) 
+
+```
+
+### Child-directed speech
+
+```{r}
+
+
+network_sizes_cds <- bind_rows(
+  tibble(
+  Speaker = "FAT",
+  Child = "Silvie",
+  Language = "English",
+  Period = levels(factor(bigrams_cds_silvie$age_range)),
+  `Number of nodes` = sapply(1:3, function(i) length(V(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="FAT" & lang == "en") %>% get_network_cds()))),
+  `Number of edges` = sapply(1:3, function(i) length(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="FAT" & lang == "en") %>% get_network_cds()))),
+  `Average weight` = paste0(sapply(1:3, function(i) mean(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="FAT" & lang == "en") %>% get_network_cds())$weight)) %>% round(digits = 3), " (", sapply(1:3, function(i) sd(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="FAT" & lang == "en") %>% get_network_cds())$weight)) %>% round(digits = 3), ")")
+),
+
+tibble(
+  Speaker = "FAT",
+  Child = "Silvie",
+  Language = "German",
+  Period = levels(factor(bigrams_cds_silvie$age_range)),
+  `Number of nodes` = sapply(1:3, function(i) length(V(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="FAT" & lang == "de") %>% get_network_cds()))),
+  `Number of edges` = sapply(1:3, function(i) length(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="FAT" & lang == "de") %>% get_network_cds()))),
+  `Average weight` = paste0(sapply(1:3, function(i) mean(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="FAT" & lang == "de") %>% get_network_cds())$weight)) %>% round(digits = 3), " (", sapply(1:3, function(i) sd(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="FAT" & lang == "de") %>% get_network_cds())$weight)) %>% round(digits = 3), ")")
+),
+
+tibble(
+  Speaker = "MOT",
+  Child = "Silvie",
+  Language = "English",
+  Period = levels(factor(bigrams_cds_silvie$age_range)),
+  `Number of nodes` = sapply(1:3, function(i) length(V(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="MOT" & lang == "en") %>% get_network_cds()))),
+  `Number of edges` = sapply(1:3, function(i) length(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="MOT" & lang == "en") %>% get_network_cds()))),
+  `Average weight` = paste0(sapply(1:3, function(i) mean(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="MOT" & lang == "en") %>% get_network_cds())$weight)) %>% round(digits = 3), " (", sapply(1:3, function(i) sd(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="MOT" & lang == "en") %>% get_network_cds())$weight)) %>% round(digits = 3), ")")
+),
+
+tibble(
+  Speaker = "MOT",
+  Child = "Silvie",
+  Language = "German",
+  Period = levels(factor(bigrams_cds_silvie$age_range)),
+  `Number of nodes` = sapply(1:3, function(i) length(V(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="MOT" & lang == "de") %>% get_network_cds()))),
+  `Number of edges` = sapply(1:3, function(i) length(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="MOT" & lang == "de") %>% get_network_cds()))),
+  `Average weight` = paste0(sapply(1:3, function(i) mean(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="MOT" & lang == "de") %>% get_network_cds())$weight)) %>% round(digits = 3), " (", sapply(1:3, function(i) sd(E(get(paste0("bigrams_cds_silvie0", i)) %>% filter(Speaker=="MOT" & lang == "de") %>% get_network_cds())$weight)) %>% round(digits = 3), ")")
+),
+
+tibble(
+  Speaker = "FAT",
+  Child = "Fion",
+  Language = "English",
+  Period = levels(factor(bigrams_cds_fion$age_range)),
+  `Number of nodes` = sapply(1:3, function(i) length(V(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="FAT" & lang == "en") %>% get_network_cds()))),
+  `Number of edges` = sapply(1:3, function(i) length(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="FAT" & lang == "en") %>% get_network_cds()))),
+  `Average weight` = paste0(sapply(1:3, function(i) mean(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="FAT" & lang == "en") %>% get_network_cds())$weight)) %>% round(digits = 3), " (", sapply(1:3, function(i) sd(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="FAT" & lang == "en") %>% get_network_cds())$weight)) %>% round(digits = 3), ")")
+),
+
+tibble(
+  Speaker = "FAT",
+  Child = "Fion",
+  Language = "German",
+  Period = levels(factor(bigrams_cds_fion$age_range)),
+  `Number of nodes` = sapply(1:3, function(i) length(V(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="FAT" & lang == "de") %>% get_network_cds()))),
+  `Number of edges` = sapply(1:3, function(i) length(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="FAT" & lang == "de") %>% get_network_cds()))),
+  `Average weight` = paste0(sapply(1:3, function(i) mean(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="FAT" & lang == "de") %>% get_network_cds())$weight)) %>% round(digits = 3), " (", sapply(1:3, function(i) sd(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="FAT" & lang == "de") %>% get_network_cds())$weight)) %>% round(digits = 3), ")")
+),
+
+tibble(
+  Speaker = "MOT",
+  Child = "Fion",
+  Language = "English",
+  Period = levels(factor(bigrams_cds_fion$age_range)),
+  `Number of nodes` = sapply(1:3, function(i) length(V(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="MOT" & lang == "en") %>% get_network_cds()))),
+  `Number of edges` = sapply(1:3, function(i) length(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="MOT" & lang == "en") %>% get_network_cds()))),
+  `Average weight` = paste0(sapply(1:3, function(i) mean(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="MOT" & lang == "en") %>% get_network_cds())$weight)) %>% round(digits = 3), " (", sapply(1:3, function(i) sd(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="MOT" & lang == "en") %>% get_network_cds())$weight)) %>% round(digits = 3), ")")
+),
+
+tibble(
+  Speaker = "MOT",
+  Child = "Fion",
+  Language = "German",
+  Period = levels(factor(bigrams_cds_fion$age_range)),
+  `Number of nodes` = sapply(1:3, function(i) length(V(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="MOT" & lang == "de") %>% get_network_cds()))),
+  `Number of edges` = sapply(1:3, function(i) length(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="MOT" & lang == "de") %>% get_network_cds()))),
+  `Average weight` = paste0(sapply(1:3, function(i) mean(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="MOT" & lang == "de") %>% get_network_cds())$weight)) %>% round(digits = 3), " (", sapply(1:3, function(i) sd(E(get(paste0("bigrams_cds_fion0", i)) %>% filter(Speaker=="MOT" & lang == "de") %>% get_network_cds())$weight)) %>% round(digits = 3), ")")
+)
+
+)
+
+
+
+# pivot to wider table
+network_sizes_cds %>% pivot_wider(names_from = "Period", values_from = c("Number of nodes", "Number of edges", "Average weight")) #%>% writexl::write_xlsx("data/cds_network_sizes.xlsx")
+
+
+
 
 ```
 
@@ -1479,10 +1691,20 @@ degree_tbl_cds %>% ggplot(aes(x = Month, y = `Average degree`, group = Language,
   theme(legend.text = element_text(size = 18)) +
   theme(legend.title = element_text(size = 18, face = "bold")) +
   theme(text = element_text(size = 18))
- ggsave("images/degree_cds.png", width = 10, height = 10)
+  # ggsave("images/degree_cds.png", width = 10, height = 10)
 
 
- # get number of utterances and average number of words per utterance for each speaker and month
+ 
+
+```
+
+## Distribution of languages in CDS
+
+To better understand the outcomes of the DNM analysis, we check the number of utterances and the distribution of different language tags in the CDS data.
+
+```{r}
+
+# get number of utterances and average number of words per utterance for each speaker and month
 
 se <- function(x) sqrt(var(x) / length(x))
  
@@ -1546,13 +1768,108 @@ silvie_parents_n <-silvie_cds %>% filter(Speaker %in% c("MOT", "FAT")) %>% group
 
 fion_parents_n /
   silvie_parents_n + plot_layout(axis_titles = "collect", guides = "collect")
-#ggsave("images/cds_number_of_utterances.png", width = 11, height = 9)
-
+# ggsave("images/cds_number_of_utterances.png", width = 11, height = 9)
 ```
 
 ## Modularities
 
 Modularity measures the density of links inside communities compared to links between different communities and is defined as a value between -1 and 1.
+
+### Child-directed speech
+
+```{r}
+
+cds_modularities <- bind_rows(
+  tibble(
+  Speaker = "MOT",
+  Language = "English",
+  Modularity = sapply(1:length(levels(factor(bigrams_cds_fion$Month))), function(i) bigrams_cds_fion %>% filter(Month == levels(factor(bigrams_cds_fion$Month))[i] & Speaker == "MOT" & lang == "en") %>% get_network_cds() %>% cluster_louvain(resolution = .3) %>% modularity()  ),
+  Month = levels(factor(bigrams_cds_fion$Month)),
+  Child = "Fion"
+),
+
+tibble(
+  Speaker = "MOT",
+  Language = "German",
+  Modularity = sapply(1:length(levels(factor(bigrams_cds_fion$Month))), function(i) bigrams_cds_fion %>% filter(Month == levels(factor(bigrams_cds_fion$Month))[i] & Speaker == "MOT" & lang == "de") %>% get_network_cds() %>% cluster_louvain(resolution = .3) %>% modularity()  ),
+  Month = levels(factor(bigrams_cds_fion$Month)),
+  Child = "Fion"
+),
+
+tibble(
+  Speaker = "FAT",
+  Language = "English",
+  Modularity = sapply(1:length(levels(factor(bigrams_cds_fion$Month))), function(i) bigrams_cds_fion %>% filter(Month == levels(factor(bigrams_cds_fion$Month))[i] & Speaker == "FAT" & lang=="en") %>% get_network_cds() %>% cluster_louvain(resolution = .3) %>% modularity()  ),
+  Month = levels(factor(bigrams_cds_fion$Month)),
+  Child = "Fion"
+),
+
+tibble(
+  Speaker = "FAT",
+  Language = "German",
+  Modularity = sapply(1:length(levels(factor(bigrams_cds_fion$Month))), function(i) bigrams_cds_fion %>% filter(Month == levels(factor(bigrams_cds_fion$Month))[i] & Speaker == "FAT" & lang=="de") %>% get_network_cds() %>% cluster_louvain(resolution = .3) %>% modularity()  ),
+  Month = levels(factor(bigrams_cds_fion$Month)),
+  Child = "Fion"
+),
+
+tibble(
+  Speaker = "MOT",
+  Language = "English",
+  Modularity = sapply(1:length(levels(factor(bigrams_cds_silvie$Month))), function(i) bigrams_cds_silvie %>% filter(Month == levels(factor(bigrams_cds_silvie$Month))[i] & Speaker == "MOT" & lang=="en") %>% get_network_cds() %>% cluster_louvain(resolution = .3) %>% modularity()  ),
+  Month = levels(factor(bigrams_cds_silvie$Month)),
+  Child = "Silvie"
+),
+
+tibble(
+  Speaker = "MOT",
+  Language = "German",
+  Modularity = sapply(1:length(levels(factor(bigrams_cds_silvie$Month))), function(i) bigrams_cds_silvie %>% filter(Month == levels(factor(bigrams_cds_silvie$Month))[i] & Speaker == "MOT" & lang=="de") %>% get_network_cds() %>% cluster_louvain(resolution = .3) %>% modularity()  ),
+  Month = levels(factor(bigrams_cds_silvie$Month)),
+  Child = "Silvie"
+),
+
+tibble(
+  Speaker = "FAT",
+  Language = "English",
+  Modularity = sapply(1:length(levels(factor(bigrams_cds_silvie$Month))), function(i) bigrams_cds_silvie %>% filter(Month == levels(factor(bigrams_cds_silvie$Month))[i] & Speaker == "FAT" & lang == "en") %>% get_network_cds() %>% cluster_louvain(resolution = .3) %>% modularity()  ),
+  Month = levels(factor(bigrams_cds_silvie$Month)),
+  Child = "Silvie"
+),
+
+tibble(
+  Speaker = "FAT",
+  Language = "German",
+  Modularity = sapply(1:length(levels(factor(bigrams_cds_silvie$Month))), function(i) bigrams_cds_silvie %>% filter(Month == levels(factor(bigrams_cds_silvie$Month))[i] & Speaker == "FAT" & lang == "de") %>% get_network_cds() %>% cluster_louvain(resolution = .3) %>% modularity()  ),
+  Month = levels(factor(bigrams_cds_silvie$Month)),
+  Child = "Silvie"
+)
+) 
+
+cds_modularities %>% ggplot(aes(x = Month, y = Modularity, group = Language, col = Language)) + geom_point() + geom_line() + facet_grid(Child~Speaker, scales = "free_x") +
+  theme(axis.text.x = element_text(angle=45, hjust=.9, size=12)) +
+  theme(axis.text = element_text(size = 18)) +
+  theme(axis.title = element_text(size = 18)) +
+  theme(strip.text = element_text(size = 18)) +
+  theme(legend.text = element_text(size = 18)) +
+  theme(legend.title = element_text(size = 18, face = "bold")) +
+  theme(text = element_text(size = 18))
+# ggsave("images/cds_modularities.png", width = 12, height = 10)
+
+# does the outlier in the mother's data have to do with data sparsity? - apparently not!
+
+# fion_cds %>% group_by(Speaker, Month) %>% summarise(
+#   n=n()
+# ) %>% filter(Speaker %in% c("MOT", "FAT")) %>%
+#   ggplot(aes(x = Month, y = n, group = Speaker, col = Speaker)) +
+# geom_point() +  geom_line()
+# 
+# bigrams_cds_fion %>% filter(Month == "03;08") %>% get_network_cds() %>% get_plot(interactive = T)
+# bigrams_cds_fion %>% filter(Month == "03;09") %>% get_network_cds() %>% get_plot()
+# bigrams_cds_fion %>% filter(Month == "03;10") %>% get_network_cds() %>% get_plot(interactive = T)
+
+```
+
+### Child speech
 
 ```{r}
 
@@ -1560,14 +1877,14 @@ Modularity measures the density of links inside communities compared to links be
 bind_rows(
   tibble(
   modularity = sapply(1:length(levels(factor(bigrams_fion$Month))),
-       function(i) filter(bigrams_fion, Month == levels(factor(bigrams_fion$Month))[i]) %>% get_network() %>% cluster_louvain %>% modularity()),
+       function(i) filter(bigrams_fion, Month == levels(factor(bigrams_fion$Month))[i]) %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   age = levels(factor(bigrams_fion$Month)),
   Child = "Fion"
 ),
 
 tibble(
   modularity = sapply(1:length(levels(factor(bigrams_silvie$Month))),
-       function(i) filter(bigrams_silvie, Month == levels(factor(bigrams_silvie$Month))[i]) %>% get_network() %>% cluster_louvain %>% modularity()),
+       function(i) filter(bigrams_silvie, Month == levels(factor(bigrams_silvie$Month))[i]) %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   age = levels(factor(bigrams_silvie$Month)),
   Child = "Silvie"
 )
@@ -1581,56 +1898,56 @@ tibble(
 modularities_sampled <- bind_rows(
   tibble(
   Period = levels(factor(bigrams_fion$age_range)),
-  Modularity = sapply(1:7, function(i) filter(get(paste0("bigrams_fion0", i)), type == "german") %>% get_network() %>% cluster_louvain() %>% modularity()),
+  Modularity = sapply(1:7, function(i) filter(get(paste0("bigrams_fion0", i)), type == "german") %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   Child = "Fion",
   Language = "German"
 ),
 
 tibble(
   Period = levels(factor(bigrams_fion$age_range)),
-  Modularity = sapply(1:7, function(i) filter(get(paste0("bigrams_fion0", i)), type == "english") %>% get_network() %>% cluster_louvain() %>% modularity()),
+  Modularity = sapply(1:7, function(i) filter(get(paste0("bigrams_fion0", i)), type == "english") %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   Child = "Fion",
   Language = "English"
 ),
 
 tibble(
   Period = levels(factor(bigrams_fion$age_range)),
-  Modularity = sapply(1:7, function(i) filter(get(paste0("bigrams_fion0", i)), type == "mixed") %>% get_network() %>% cluster_louvain() %>% modularity()),
+  Modularity = sapply(1:7, function(i) filter(get(paste0("bigrams_fion0", i)), type == "mixed") %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   Child = "Fion",
   Language = "mixed"
 ),
 
 tibble(
   Period = levels(factor(bigrams_fion$age_range)),
-  Modularity = sapply(1:7, function(i) filter(get(paste0("bigrams_fion0", i))) %>% get_network() %>% cluster_louvain() %>% modularity()),
+  Modularity = sapply(1:7, function(i) filter(get(paste0("bigrams_fion0", i))) %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   Child = "Fion",
   Language = "all"
 ),
 
 tibble(
   Period = levels(factor(bigrams_silvie$age_range)),
-  Modularity = sapply(1:6, function(i) filter(get(paste0("bigrams_silvie0", i)), type == "german") %>% get_network() %>% cluster_louvain() %>% modularity()),
+  Modularity = sapply(1:6, function(i) filter(get(paste0("bigrams_silvie0", i)), type == "german") %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   Child = "Silvie",
   Language = "German"
 ),
 
 tibble(
   Period = levels(factor(bigrams_silvie$age_range)),
-  Modularity = sapply(1:6, function(i) filter(get(paste0("bigrams_silvie0", i)), type == "english") %>% get_network() %>% cluster_louvain() %>% modularity()),
+  Modularity = sapply(1:6, function(i) filter(get(paste0("bigrams_silvie0", i)), type == "english") %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   Child = "Silvie",
   Language = "English"
 ),
 
 tibble(
   Period = levels(factor(bigrams_silvie$age_range)),
-  Modularity = sapply(1:6, function(i) filter(get(paste0("bigrams_silvie0", i)), type == "mixed") %>% get_network() %>% cluster_louvain() %>% modularity()),
+  Modularity = sapply(1:6, function(i) filter(get(paste0("bigrams_silvie0", i)), type == "mixed") %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   Child = "Silvie",
   Language = "mixed"
 ),
 
 tibble(
   Period = levels(factor(bigrams_silvie$age_range)),
-  Modularity = sapply(1:6, function(i) filter(get(paste0("bigrams_silvie0", i))) %>% get_network() %>% cluster_louvain() %>% modularity()),
+  Modularity = sapply(1:6, function(i) filter(get(paste0("bigrams_silvie0", i))) %>% get_network() %>% cluster_louvain(resolution = .3) %>% modularity()),
   Child = "Silvie",
   Language = "all"
 )
@@ -1656,7 +1973,7 @@ modularities_sampled %>%
   theme(legend.title = element_text(size = 18, face = "bold")) +
   theme(text = element_text(size = 18)) +
   guides(alpha = "none", linewidth = "none")
-ggsave("images/modularities450.png", width = 12, height = 6)  
+# ggsave("images/modularities450.png", width = 12, height = 6)  
 
 # What happens with Fion's English data in the 3rd period?
 fionp3 <- bigrams_fion %>% filter(age_range == levels(factor(bigrams_fion$age_range))[3] & type == "english") %>% get_network() %>% get_plot() + ggtitle(paste0("Fion's English data, ", levels(factor(bigrams_fion$age_range))[3])) +
@@ -1667,33 +1984,7 @@ fionp4 <- bigrams_fion %>% filter(age_range == levels(factor(bigrams_fion$age_ra
   theme(plot.title = element_text(face = "bold", hjust = 0.5))
 
 (fionp3 | fionp4)
-#ggsave("images/fion_english_data_3and4_450.png", width = 12, height = 5)
-
-
-
-
-# get modularities
-tibble(
-  child = c(rep("Fion", 7), rep("Silvie", 6)),
-  age = c(levels(factor(bigrams_fion$age_range)),
-          levels(factor(bigrams_silvie$age_range))),
-modularity = c(bigrams_fion01 %>% get_network(modularity_measure=TRUE), 
-bigrams_fion02 %>% get_network(modularity_measure=TRUE), 
-bigrams_fion03 %>% get_network(modularity_measure=TRUE), 
-bigrams_fion04 %>% get_network(modularity_measure=TRUE), 
-bigrams_fion05 %>% get_network(modularity_measure=TRUE), 
-bigrams_fion06 %>% get_network(modularity_measure=TRUE), 
-bigrams_fion07 %>% get_network(modularity_measure=TRUE), 
-bigrams_silvie01 %>% get_network(modularity_measure=TRUE), 
-bigrams_silvie02 %>% get_network(modularity_measure=TRUE), 
-bigrams_silvie03 %>% get_network(modularity_measure=TRUE), 
-bigrams_silvie04 %>% get_network(modularity_measure=TRUE), 
-bigrams_silvie05 %>% get_network(modularity_measure=TRUE), 
-bigrams_silvie06 %>% get_network(modularity_measure=TRUE)))
-
-
-
-
+# ggsave("images/fion_english_data_3and4_450.png", width = 12, height = 5)
 
 
 ```
@@ -1705,9 +1996,9 @@ How many communities are identified?
 ```{r}
 
 # communities divided by network size:
-sapply(1:7, function(i) get(paste0("network_fion0", i)) %>% cluster_louvain() %>% communities() %>% length()) / sapply(1:7, function(i) length(V(get(paste0("network_fion0", i)))))
+sapply(1:7, function(i) get(paste0("network_fion0", i)) %>% cluster_louvain(resolution = .3) %>% communities() %>% length()) / sapply(1:7, function(i) length(V(get(paste0("network_fion0", i)))))
 
-sapply(1:6, function(i) get(paste0("network_silvie0", i)) %>% cluster_louvain() %>% communities() %>% length()) / sapply(1:6, function(i) length(V(get(paste0("network_silvie0", i)))))
+sapply(1:6, function(i) get(paste0("network_silvie0", i)) %>% cluster_louvain(resolution = .3) %>% communities() %>% length()) / sapply(1:6, function(i) length(V(get(paste0("network_silvie0", i)))))
 
 # relatively stable
 
